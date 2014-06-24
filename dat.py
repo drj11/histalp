@@ -3,6 +3,8 @@
 import json
 import re
 import urllib.request
+import urllib.parse
+import sys
 
 # URL from the SCRIPT tag at this URL:
 #   view-source:http://www.zamg.ac.at/histalp/dataset/station/csv.php
@@ -41,14 +43,27 @@ def filter_temperature_stations(stations):
             result[histalp_id] = station
     return result
 
+def fetch_station_data(id, min, max):
+    """
+    curl -d country=CC -d statabbr=SSS -d station=_$n -d parameter=T01 -d years='1700 - 2014' -d exportCSV=yes http://www.zamg.ac.at/histalp/dataset/station/csv.php > $csv
+    """
+    
+    url = "http://www.zamg.ac.at/histalp/dataset/station/csv.php"
+    req = urllib.request.Request(url)
+    param = dict(country='CC', statabbr='SSS', station=id,
+      parameter='T01', years="{} - {}".format(min, max),
+      exportCSV='yes')
+    f = urllib.request.urlopen(url, data=urllib.parse.urlencode(param).encode('ascii'))
+    sys.stdout.write(f.read().decode('utf-8'))
+
 def main():
     country_stations = get_json(URL)
     all_stations = get_all_stations(country_stations)
     temperature_stations = filter_temperature_stations(all_stations)
     for histalp_id, station in temperature_stations.items():
         t_param = station['params']['T01']
-        print(station['abbr'], station['name'],
-          t_param['min'], t_param['max'])
+        fetch_station_data(histalp_id,
+          min=t_param['min'], max=t_param['max'])
 
 
 if __name__ == '__main__':
